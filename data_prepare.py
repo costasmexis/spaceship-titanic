@@ -90,7 +90,7 @@ def main():
 
 	# Filling missing HomePlanet
 	for i in df[df['HomePlanet'].isnull()].index:
-		if((df.iloc[i]['Solo']==1) & (df.iloc[i]['Transported']==0) & (df.iloc[i]['CryoSleep']==0) & (df.iloc[i]['No_spending']==0)):
+		if((df.iloc[i]['Solo']==1)  & (df.iloc[i]['CryoSleep']==0) & (df.iloc[i]['No_spending']==0)):
 			df.loc[i, 'HomePlanet'] = 'Earth'
 
 	for i in df[df['HomePlanet'].isnull()].index:
@@ -119,11 +119,8 @@ def main():
 	print('Destination missing values: ', df['Destination'].isna().sum())
 
 	# Filling Cabin_side
-	for i in df[df['Cabin_side'].isnull()].index:
-	    if(df.iloc[i]['Transported']==1): 
-	        df.loc[i, 'Cabin_side'] = 'S'
-	    else: 
-	        df.loc[i, 'Cabin_side'] = 'P'	
+	# We will drop nans on Cabin_side in lack of better idea
+	df.drop(index=df[df['Cabin_side'].isna()].index, inplace=True)
 
 	print('Cabin_side missing values: ', df['Cabin_side'].isna().sum())
 
@@ -174,13 +171,13 @@ def main():
 	    df = pd.concat([df, dummies], axis=1)
 	    df.drop([col], axis=1, inplace=True)
 
-	print(df.shape)
 	
-	df['Transported'] = df['Transported'].astype(int)
+	# df['Transported'] = df['Transported'].astype(int)
 
 	# Drop unusefull columns
 	df.drop(['Name','VIP','Cabin_num', 'Group'],axis=1,inplace=True)
 
+	print(df.shape)
 
 	# Save Final .csv
 	df.to_csv(args.output, index=True)
