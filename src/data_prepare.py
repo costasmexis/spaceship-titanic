@@ -1,3 +1,6 @@
+'''
+In this file, we prapare the raw data given by the competition for machine learning training.
+'''
 import numpy as np
 import pandas as pd
 import argparse
@@ -85,6 +88,7 @@ def main():
 
 	# Filling missing CryoSleep
 	df['CryoSleep'].fillna(df['No_spending'], inplace=True)
+	df['CryoSleep'] = df['CryoSleep'].astype(int)
 	print('CryoSleep missing values: ', df['CryoSleep'].isna().sum())
 
 	# Filling missing HomePlanet
