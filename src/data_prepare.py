@@ -37,7 +37,7 @@ def main():
 
 	# Create a feature with total expences of each passenger
 	expences = ['RoomService', 'FoodCourt', 'ShoppingMall', 'Spa', 'VRDeck']
-	df['Total_expences'] = df['Expenditure'] = df[expences].sum(axis=1)
+	df['Total_expences'] = df[expences].sum(axis=1)
 
 	# Create a variable (0/1) describing if the current passenger spend anything or not!
 	df['No_spending'] = (df['Total_expences']==0).astype(int)
