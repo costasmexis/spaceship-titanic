@@ -94,6 +94,8 @@ def KBest(X_train, y_train, X_test, k):
 # ++++++++++++++++++++++++++
 # ==========================
 
+
+
 cols_to_norm = X_train.select_dtypes(include='float64').columns.values # The numerical features to normalize before training
 
 
@@ -153,4 +155,41 @@ def main():
 
     run_on_test(best_xgb, X_train, y_train.values.ravel(), X_test, '../submissions/submission_xgb.csv')
 
+
+def ann():
+
+    import tensorflow as tf
+    import keras
+    from keras.models import Sequential
+    from keras.layers import Dense
+    from keras.wrappers.scikit_learn import KerasClassifier
+
+    opt = tf.keras.optimizers.SGD(learning_rate=0.01)
+
+    model = Sequential()
+    model.add(Dense(100, kernel_initializer = 'uniform', activation='relu', input_dim=X_train.shape[1]))
+    model.add(Dense(100, kernel_initializer = 'uniform', activation='relu'))
+    model.add(Dense(100, kernel_initializer = 'uniform', activation='relu'))
+    model.add(Dense(1, kernel_initializer = 'uniform', activation='sigmoid'))
+    model.compile(optimizer=opt, loss='binary_crossentropy', metrics=['accuracy'])
+
+    # Normalize data
+    # X_train_ann, X_val_ann = normalize(X_sub_train, X_val)
+
+
+    # hist = model.fit(X_train_ann, y_sub_train, epochs=100, batch_size=20)
+    # y_pred = model.predict(X_val_ann) > .5
+    # print("Accuracy:",accuracy_score(y_val, y_pred))
+
+    # Normalize data
+    X_train_ann, X_test_ann = normalize(X_train, X_test)
+
+    hist = model.fit(X_train_ann, y_train, epochs=80, batch_size=20)
+    y_pred = model.predict(X_test_ann) > .5
+
+    submission = pd.DataFrame({'PassengerId': index_submission ,'Transported': y_pred.reshape(-1,)},columns=['PassengerId', 'Transported'])
+
+    submission.to_csv('../submissions/submission_ann.csv', index=False)
+
+ann()
 
