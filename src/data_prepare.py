@@ -1,5 +1,11 @@
 '''
 In this file, we prapare the raw data given by the competition for machine learning training.
+
+
+To run:
+python3 data_prepare.py -input ../data/train.csv -output ../data/data_train.csv -type trainset
+python3 data_prepare.py -input ../data/test.csv -output ../data/data_test.csv -type testset
+
 '''
 import numpy as np
 import pandas as pd
@@ -80,6 +86,7 @@ def main():
 	# Replace Family = 0 if Name = NoName NoName
 	noname = df[df['Family Name'] == 'NoName'].index.values
 	df.loc[noname, 'Family'] = 0
+	df['Family'] = df['Family'].astype(int)
 	# Drop Name column
 	df.drop(['Name'],axis=1,inplace=True)
 
