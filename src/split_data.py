@@ -4,10 +4,8 @@ Split TRAIN data to SUB-TRAIN and VALIDATION, in order to test models accuracy
 Also, it creates the X_train.csv and y_train.csv (The WHOLE training set)
 And the X_test.csv (The WHOLE test set)
 
-Input should be data_train.csv (the output of data_prepare.py)
-Output would be X_sub_train.csv, y_sub_train.csv and X_val.csv, y_val.csv
-
-
+Input should be data_train.csv and data_test.csv (the output of data_prepare.py)
+Output would be X_sub_train.csv, y_sub_train.csv and X_val.csv, y_val.csv and X_test.csv
 '''
 
 # ===========================
