@@ -3,6 +3,7 @@
 # ===========================
 import numpy as np
 import pandas as pd
+import random
 
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, precision_score, recall_score
 from sklearn.model_selection import RandomizedSearchCV
@@ -13,31 +14,24 @@ from sklearn.feature_selection import chi2
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
+import xgboost as xgb
 
-def load_dataset(filename, train_or_test):
-    df = pd.read_csv(filename)
-    df = df.set_index('PassengerId')
-    if(train_or_test == 'train'):
-        df['Transported'] = df['Transported'].astype(int)
-        X = df.drop(['Transported'],axis=1)
-        y = df['Transported']
-        return X, y
-    else:
-        return df
+# ==================
+# Load datasets
+# ==================
 
-X, y = load_dataset('../data/data_train.csv', "train")
+X_train = pd.read_csv('../data/X_train.csv', index_col='PassengerId')
+y_train = pd.read_csv('../data/y_train.csv', index_col='PassengerId')
 
-X_TEST = load_dataset('../data/data_test.csv', "test")
+X_sub_train = pd.read_csv('../data/X_sub_train.csv', index_col='PassengerId')
+y_sub_train = pd.read_csv('../data/y_sub_train.csv', index_col='PassengerId')
 
-index_submission = X_TEST.index # Keep 'PassengerId' of test set to use for submission file
+X_val = pd.read_csv('../data/X_val.csv', index_col='PassengerId')
+y_val = pd.read_csv('../data/y_val.csv', index_col='PassengerId')
 
-# =====================
-# Split train / val 
-# =====================
-from sklearn.model_selection import train_test_split
+X_test = pd.read_csv('../data/X_test.csv', index_col='PassengerId')
 
-# Train-validation split
-X_train, X_val, y_train, y_val = train_test_split(X,y,test_size=0.2,random_state=0)
+index_submission = X_test.index # Keep 'PassengerId' of test set to use for submission file
 
 # =========================
 # Modelling
@@ -52,9 +46,11 @@ def print_scores(y_true, y_pred):
 
 def normalize(X_train, X_test):
     scaler = StandardScaler()
-    X_train_scl = scaler.fit_transform(X_train)
-    X_test_scl = scaler.transform(X_test)
-    return X_train_scl, X_test_scl
+    X_train_ = X_train.copy()
+    X_test_ = X_test.copy()
+    X_train_[cols_to_norm] = scaler.fit_transform(X_train[cols_to_norm])
+    X_test_[cols_to_norm] = scaler.transform(X_test[cols_to_norm])
+    return X_train, X_test
 
 def run_model(model, X_train, y_train, X_test, y_test):
     model.fit(X_train, y_train)
@@ -71,12 +67,9 @@ def tune_model(model, param_grid, n_iter, X_train, y_train):
     best_model = grid.best_estimator_
     return best_model
 
-def run_on_test(model, X_test, filename):
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(X)
-    X_test =  scaler.transform(X_test)
-    y_train = y
-    print(model)
+def run_on_test(model, X_train, y_train, X_test, filename):
+    print(model)    
+    X_train_, X_test_ = normalize(X_train, X_test)
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
@@ -101,95 +94,63 @@ def KBest(X_train, y_train, X_test, k):
 # ++++++++++++++++++++++++++
 # ==========================
 
-# -----------------
-# Models With KBest
-# -----------------
-
-# print("LogisticRegression: \n")
-# X_train_lg, X_val_lg = normalize(X_train, X_val)
-# lg = LogisticRegression()
-# score, y_pred = run_model(lg, X_train_lg, y_train, X_val_lg, y_val) 
+cols_to_norm = X_train.select_dtypes(include='float64').columns.values # The numerical features to normalize before training
 
 
-# # SVC
-# # defining parameter range
-# param_grid_svc = {'C': [1, 1.5, 2, 3, 5, 10, 12, 20],
-#               'gamma': [0.002, 0.003, 0.004, 0.001],
-#               'kernel': ['rbf']
-# }
+def main():
 
-# svc = SVC(random_state=32)
-# X_train_svc, X_val_svc = normalize(X_train, X_val)
-# best_svc = tune_model(svc, param_grid_svc, 20, X_train_svc, y_train)
-# score, y_pred = run_model(best_svc, X_train_svc, y_train, X_val_svc, y_val)
-
-# run_on_test(best_svc, X_TEST, '../submissions/submission_new_svc.csv')
+    X_train_lg, X_val_lg = normalize(X_sub_train, X_val)
+    lg = LogisticRegression(max_iter=10000)
+    score, y_pred = run_model(lg, X_train_lg, y_sub_train.values.ravel(), X_val_lg, y_val.values.ravel()) 
 
 
-# n_estimators = [10,100, 300, 500, 800, 1200, 2000]
-# max_depth = [5, 8, 15, 25, 30, 35, 40, 50, 80, 100]
-# min_samples_split = [2, 5, 10, 15, 100]
-# min_samples_leaf = [1, 2, 5, 10] 
+    # SVC
+    # defining parameter range
+    param_grid_svc = {'C': [1, 1.5, 2, 3, 5, 10, 12, 20],
+                  'gamma': [0.002, 0.003, 0.004, 0.001],
+                  'kernel': ['rbf']
+    }
 
-# param_grid_rf = dict(n_estimators = n_estimators, 
-#             max_depth = max_depth,  
-#             min_samples_split = min_samples_split, 
-#             min_samples_leaf = min_samples_leaf)
+    X_train_svc, X_val_svc = normalize(X_sub_train, X_val)
+    svc = SVC(random_state=32)
+    best_svc = tune_model(svc, param_grid_svc, 25, X_train_svc, y_sub_train.values.ravel())
+    score, y_pred = run_model(best_svc, X_train_svc, y_sub_train.values.ravel(), X_val_svc, y_val.values.ravel())
 
-# rf = RandomForestClassifier(random_state = 1)
-# X_train_rf, X_val_rf = normalize(X_train, X_val)
-# best_rf = tune_model(rf, param_grid_rf, 20, X_train_rf, y_train)
-# score, y_pred = run_model(best_rf, X_train_rf, y_train, X_val_rf, y_val)
-
-# run_on_test(best_rf, X_TEST, '../submissions/submission_rf.csv')
-
-# import xgboost as xgb
-# import random
-
-# param_grid_xgb = {
-#  'learning_rate' : [0.05,0.10,0.15,0.20,0.25,0.30],
-#  'max_depth' : [ 3, 4, 5, 6, 8, 10, 12, 15],
-#  'min_child_weight' : [ 1, 3, 5, 7 ],
-#  'gamma': [ 0.0, 0.1, 0.2 , 0.3, 0.4 ],
-#  'colsample_bytree' : [ 0.3, 0.4, 0.5 , 0.7 ]
-# }
-
-# xgb = xgb.XGBClassifier()
-# X_train_xgb, X_val_xgb = normalize(X_train, X_val)
-# best_xgb = tune_model(xgb, param_grid_xgb, 20, X_train_xgb, y_train)
-# score, y_pred = run_model(best_xgb, X_train_xgb, y_train, X_val_xgb, y_val)
-
-# run_on_test(best_xgb, X_TEST, '../submissions/submission_xgb.csv')
+    run_on_test(best_svc, X_train, y_train.values.ravel(), X_test, '../submissions/submission_new_svc.csv')
 
 
+    n_estimators = [10,100, 300, 500, 800, 1200, 2000]
+    max_depth = [5, 8, 15, 25, 30, 35, 40, 50, 80, 100]
+    min_samples_split = [2, 5, 10, 15, 100]
+    min_samples_leaf = [1, 2, 5, 10] 
+
+    param_grid_rf = dict(n_estimators = n_estimators, 
+                max_depth = max_depth,  
+                min_samples_split = min_samples_split, 
+                min_samples_leaf = min_samples_leaf)
+
+    rf = RandomForestClassifier(random_state = 1)
+    X_train_rf, X_val_rf = normalize(X_sub_train, X_val)
+    best_rf = tune_model(rf, param_grid_rf, 25, X_train_rf, y_sub_train.values.ravel())
+    score, y_pred = run_model(best_rf, X_train_rf, y_sub_train.values.ravel(), X_val_rf, y_val.values.ravel())
+
+    run_on_test(best_rf, X_train, y_train.values.ravel(), X_test, '../submissions/submission_rf.csv')
 
 
-# ==========================
-# ++++++++++++++++++++++++++
-# 
-#        SelectKBest
-#
-# ++++++++++++++++++++++++++
-# ==========================
-# # feature selection
-# def KBest(X_train, y_train, X_test, k):
-#     fs = SelectKBest(score_func=chi2, k=k)
-#     fs.fit(X_train, y_train)
-#     X_train_fs = fs.transform(X_train)
-#     X_test_fs = fs.transform(X_test)
-#     return X_train_fs, X_test_fs, fs
+    param_grid_xgb = {
+     'learning_rate' : [0.05,0.10,0.15,0.20,0.25,0.30],
+     'max_depth' : [ 3, 4, 5, 6, 8, 10, 12, 15],
+     'min_child_weight' : [ 1, 3, 5, 7 ],
+     'gamma': [ 0.0, 0.01, 0.05, 0.1, 0.2 , 0.3, 0.4 ],
+     'colsample_bytree' : [ 0.3, 0.4, 0.5 , 0.7 ],
+     'n_estimators' : [10, 25, 50, 100, 150, 200, 300, 500]
+    }
 
-# scores = []
-# for k in range(2, X.shape[1]+1): 
-#     X_train_fs, X_val_fs, fs = KBest(X_train, y_train, X_val, k)
-#     X_train_fs, X_val_fs = normalize(X_train_fs, X_val_fs)
-#     score, y_pred = run_model(SVC(C=12, gamma=0.004, random_state=3), 
-#         X_train_fs, y_train, X_val_fs, y_val)
-#     scores.append(score)
+    xgb_model = xgb.XGBClassifier(use_label_encoder=False)
+    X_train_xgb, X_val_xgb = normalize(X_sub_train, X_val)
+    best_xgb = tune_model(xgb_model, param_grid_xgb, 30, X_train_xgb, y_sub_train.values.ravel())
+    score, y_pred = run_model(best_xgb, X_train_xgb, y_sub_train.values.ravel(), X_val_xgb, y_val.values.ravel())
 
-# k_select = pd.DataFrame()
-# k_select['k'] = [ k for k in range(2, X.shape[1]+1)]
-# k_select['accuracy'] = scores 
+    run_on_test(best_xgb, X_train, y_train.values.ravel(), X_test, '../submissions/submission_xgb.csv')
 
-# print(k_select)
 
